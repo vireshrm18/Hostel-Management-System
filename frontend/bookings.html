@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookings - Hostel Management</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dashboard">
+    <nav class="navbar">
+        <h2>🏨 Hostel Management</h2>
+        <div class="nav-links">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="rooms.html">Rooms</a>
+            <a href="students.html">Students</a>
+            <a href="bookings.html" class="active">Bookings</a>
+            <a href="feedback.html">Feedback</a>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </nav>
+
+    <div class="container">
+        <div class="content-section">
+            <div class="section-header">
+                <h2>Booking Management</h2>
+                <button class="btn-primary" onclick="openModal()">Add Booking</button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Room</th>
+                        <th>Check-in</th>
+                        <th>Check-out</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bookingsTable">
+                    <!-- Bookings will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="bookingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add Booking</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="bookingForm">
+                <div class="form-group">
+                    <label>Student</label>
+                    <select id="studentId" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Room</label>
+                    <select id="roomId" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Check-in Date</label>
+                    <input type="date" id="checkInDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Check-out Date</label>
+                    <input type="date" id="checkOutDate">
+                </div>
+                <div class="form-group">
+                    <label>Amount Paid</label>
+                    <input type="number" id="amountPaid" min="0" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="bookingStatus">
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">Save</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        checkAuth();
+        let editingId = null;
+
+        async function loadBookings() {
+            const bookings = await apiCall('/bookings');
+            if (bookings) {
+                const tbody = document.getElementById('bookingsTable');
+                tbody.innerHTML = bookings.map(booking => `
+                    <tr>
+                        <td>${booking.student_name}</td>
+                        <td>${booking.room_number}</td>
+                        <td>${booking.check_in_date}</td>
+                        <td>${booking.check_out_date || 'N/A'}</td>
+                        <td>$${booking.amount_paid}</td>
+                        <td><span class="badge badge-${booking.status === 'active' ? 'success' : booking.status === 'completed' ? 'warning' : 'danger'}">${booking.status}</span></td>
+                        <td class="action-btns">
+                            <button class="btn-edit" onclick="editBooking(${booking.id})">Edit</button>
+                            <button class="btn-delete" onclick="deleteBooking(${booking.id})">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        async function loadDropdowns() {
+            const students = await apiCall('/students');
+            const rooms = await apiCall('/rooms');
+            
+            const studentSelect = document.getElementById('studentId');
+            const roomSelect = document.getElementById('roomId');
+            
+            studentSelect.innerHTML = students.map(s => 
+                `<option value="${s.id}">${s.name}</option>`
+            ).join('');
+            
+            roomSelect.innerHTML = rooms.filter(r => r.status === 'available').map(r => 
+                `<option value="${r.id}">${r.room_number} - ${r.room_type}</option>`
+            ).join('');
+        }
+
+        async function openModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = 'Add Booking';
+            document.getElementById('bookingForm').reset();
+            await loadDropdowns();
+            document.getElementById('bookingModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('bookingModal').classList.remove('active');
+        }
+
+        async function editBooking(id) {
+            const bookings = await apiCall('/bookings');
+            const booking = bookings.find(b => b.id === id);
+            if (booking) {
+                editingId = id;
+                document.getElementById('modalTitle').textContent = 'Edit Booking';
+                await loadDropdowns();
+                
+                document.getElementById('studentId').value = booking.student_id;
+                document.getElementById('roomId').value = booking.room_id;
+                document.getElementById('checkInDate').value = booking.check_in_date;
+                document.getElementById('checkOutDate').value = booking.check_out_date || '';
+                document.getElementById('amountPaid').value = booking.amount_paid;
+                document.getElementById('bookingStatus').value = booking.status;
+                document.getElementById('bookingModal').classList.add('active');
+            }
+        }
+
+        async function deleteBooking(id) {
+            if (confirm('Are you sure you want to delete this booking?')) {
+                const result = await apiCall(`/bookings/${id}`, 'DELETE');
+                if (result && result.success) {
+                    showAlert('Booking deleted successfully');
+                    loadBookings();
+                }
+            }
+        }
+
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                student_id: parseInt(document.getElementById('studentId').value),
+                room_id: parseInt(document.getElementById('roomId').value),
+                check_in_date: document.getElementById('checkInDate').value,
+                check_out_date: document.getElementById('checkOutDate').value || null,
+                amount_paid: parseFloat(document.getElementById('amountPaid').value),
+                status: document.getElementById('bookingStatus').value
+            };
+            
+            const endpoint = editingId ? `/bookings/${editingId}` : '/bookings';
+            const method = editingId ? 'PUT' : 'POST';
+            
+            const result = await apiCall(endpoint, method, data);
+            if (result && result.success) {
+                showAlert(result.message);
+                closeModal();
+                loadBookings();
+            }
+        });
+
+        loadBookings();
+    </script>
+</body>
+</html>

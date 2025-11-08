@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - Hostel Management</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dashboard">
+    <nav class="navbar">
+        <h2>🏨 Hostel Management</h2>
+        <div class="nav-links">
+            <a href="student-dashboard.html" class="active">Dashboard</a>
+            <a href="student-feedback.html">My Feedback</a>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </nav>
+
+    <div class="container">
+        <h1 style="margin-bottom: 20px; color: #333;">Welcome, <span id="studentName"></span>!</h1>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>My Room</h3>
+                <div class="number" id="roomNumber">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Room Type</h3>
+                <div class="number" id="roomType" style="font-size: 20px;">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Amount Paid</h3>
+                <div class="number" id="amountPaid">$0</div>
+            </div>
+            <div class="stat-card">
+                <h3>My Feedback</h3>
+                <div class="number" id="feedbackCount">0</div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>My Booking Details</h2>
+            <div id="bookingDetails" style="margin-top: 20px;">
+                <p style="color: #666;">Loading...</p>
+            </div>
+        </div>
+
+        <div class="content-section" style="margin-top: 20px;">
+            <div class="section-header">
+                <h2>Submit Feedback / Query</h2>
+            </div>
+            <form id="feedbackForm">
+                <div class="form-group">
+                    <label>Subject</label>
+                    <input type="text" id="subject" required placeholder="Enter subject">
+                </div>
+                <div class="form-group">
+                    <label>Message / Query</label>
+                    <textarea id="message" rows="5" required placeholder="Describe your feedback or query..."></textarea>
+                </div>
+                <button type="submit" class="btn-primary">Submit Feedback</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        checkAuth();
+        const studentId = localStorage.getItem('studentId');
+        const studentName = localStorage.getItem('studentName');
+
+        if (!studentId || localStorage.getItem('userType') !== 'student') {
+            window.location.href = 'index.html';
+        }
+
+        document.getElementById('studentName').textContent = studentName;
+
+        async function loadDashboard() {
+            const data = await apiCall(`/student/dashboard/${studentId}`);
+            if (data) {
+                // Update stats
+                if (data.booking) {
+                    document.getElementById('roomNumber').textContent = data.booking.room_number;
+                    document.getElementById('roomType').textContent = data.booking.room_type;
+                    document.getElementById('amountPaid').textContent = '$' + data.booking.amount_paid;
+                    
+                    // Show booking details
+                    document.getElementById('bookingDetails').innerHTML = `
+                        <table style="width: 100%;">
+                            <tr>
+                                <td style="padding: 10px; font-weight: bold;">Room Number:</td>
+                                <td style="padding: 10px;">${data.booking.room_number}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; font-weight: bold;">Room Type:</td>
+                                <td style="padding: 10px;">${data.booking.room_type}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; font-weight: bold;">Check-in Date:</td>
+                                <td style="padding: 10px;">${data.booking.check_in_date}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; font-weight: bold;">Check-out Date:</td>
+                                <td style="padding: 10px;">${data.booking.check_out_date || 'Not set'}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; font-weight: bold;">Monthly Price:</td>
+                                <td style="padding: 10px;">$${data.booking.price}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; font-weight: bold;">Amount Paid:</td>
+                                <td style="padding: 10px;">$${data.booking.amount_paid}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; font-weight: bold;">Status:</td>
+                                <td style="padding: 10px;"><span class="badge badge-success">${data.booking.status}</span></td>
+                            </tr>
+                        </table>
+                    `;
+                } else {
+                    document.getElementById('bookingDetails').innerHTML = `
+                        <p style="color: #666;">No active booking found. Please contact admin for room allocation.</p>
+                    `;
+                }
+                
+                document.getElementById('feedbackCount').textContent = data.feedback_count;
+            }
+        }
+
+        document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                student_id: parseInt(studentId),
+                subject: document.getElementById('subject').value,
+                message: document.getElementById('message').value
+            };
+            
+            const result = await apiCall('/feedback', 'POST', data);
+            if (result && result.success) {
+                showAlert('Feedback submitted successfully!');
+                document.getElementById('feedbackForm').reset();
+                loadDashboard();
+            }
+        });
+
+        loadDashboard();
+    </script>
+</body>
+</html>

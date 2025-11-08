@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hostel Management System - Login</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <!-- Animated Background -->
+        <div class="login-bg-animation">
+            <div class="circle circle-1"></div>
+            <div class="circle circle-2"></div>
+            <div class="circle circle-3"></div>
+        </div>
+        
+        <div class="login-box">
+            <!-- Logo/Icon -->
+            <div class="login-logo">
+                <div class="logo-icon">🏨</div>
+                <h1>Hostel Management System</h1>
+                <p class="login-subtitle">Welcome back! Please login to continue</p>
+            </div>
+            
+            <!-- Login Type Tabs -->
+            <div class="login-tabs">
+                <button class="tab-btn active" onclick="switchTab('admin')">
+                    <span class="tab-icon">👨‍💼</span>
+                    <span>Admin</span>
+                </button>
+                <button class="tab-btn" onclick="switchTab('student')">
+                    <span class="tab-icon">👨‍🎓</span>
+                    <span>Student</span>
+                </button>
+            </div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username" id="usernameLabel">
+                        <span class="label-icon">👤</span>
+                        Username
+                    </label>
+                    <input type="text" id="username" required placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label for="password">
+                        <span class="label-icon">🔒</span>
+                        Password
+                    </label>
+                    <input type="password" id="password" required placeholder="Enter your password">
+                </div>
+                <button type="submit" class="btn-login">
+                    <span>Login</span>
+                    <span class="btn-arrow">→</span>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p id="loginHint">
+                    <span class="hint-icon">💡</span>
+                    Default: admin / admin123
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        let currentLoginType = 'admin';
+
+        function switchTab(type) {
+            currentLoginType = type;
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (type === 'admin') {
+                document.getElementById('usernameLabel').textContent = 'Username';
+                document.getElementById('loginHint').textContent = 'Default: admin / admin123';
+            } else {
+                document.getElementById('usernameLabel').textContent = 'Email';
+                document.getElementById('loginHint').textContent = 'Use your registered email and password';
+            }
+            document.getElementById('loginForm').reset();
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const result = await apiCall('/login', 'POST', { 
+                username, 
+                password, 
+                user_type: currentLoginType 
+            });
+            
+            if (result && result.success) {
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('userType', result.user_type);
+                
+                if (result.user_type === 'admin') {
+                    window.location.href = 'dashboard.html';
+                } else {
+                    localStorage.setItem('studentId', result.student_id);
+                    localStorage.setItem('studentName', result.student_name);
+                    window.location.href = 'student-dashboard.html';
+                }
+            } else {
+                alert('Invalid credentials!');
+            }
+        });
+    </script>
+</body>
+</html>

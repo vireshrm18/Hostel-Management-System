@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Students - Hostel Management</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dashboard">
+    <nav class="navbar">
+        <h2>🏨 Hostel Management</h2>
+        <div class="nav-links">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="rooms.html">Rooms</a>
+            <a href="students.html" class="active">Students</a>
+            <a href="bookings.html">Bookings</a>
+            <a href="feedback.html">Feedback</a>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </nav>
+
+    <div class="container">
+        <div class="content-section">
+            <div class="section-header">
+                <h2>Student Management</h2>
+                <button class="btn-primary" onclick="openModal()">Add Student</button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Address</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="studentsTable">
+                    <!-- Students will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="studentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add Student</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="studentForm">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" id="phone" required>
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <textarea id="address" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="studentPassword" required placeholder="Default: 123456">
+                </div>
+                <button type="submit" class="btn">Save</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        checkAuth();
+        let editingId = null;
+
+        async function loadStudents() {
+            const students = await apiCall('/students');
+            if (students) {
+                const tbody = document.getElementById('studentsTable');
+                tbody.innerHTML = students.map(student => `
+                    <tr>
+                        <td>${student.name}</td>
+                        <td>${student.email}</td>
+                        <td>${student.phone}</td>
+                        <td>${student.address || 'N/A'}</td>
+                        <td class="action-btns">
+                            <button class="btn-edit" onclick="editStudent(${student.id})">Edit</button>
+                            <button class="btn-delete" onclick="deleteStudent(${student.id})">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function openModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = 'Add Student';
+            document.getElementById('studentForm').reset();
+            document.getElementById('studentPassword').value = '123456';
+            document.getElementById('studentModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('studentModal').classList.remove('active');
+        }
+
+        async function editStudent(id) {
+            const students = await apiCall('/students');
+            const student = students.find(s => s.id === id);
+            if (student) {
+                editingId = id;
+                document.getElementById('modalTitle').textContent = 'Edit Student';
+                document.getElementById('name').value = student.name;
+                document.getElementById('email').value = student.email;
+                document.getElementById('phone').value = student.phone;
+                document.getElementById('address').value = student.address || '';
+                document.getElementById('studentPassword').value = student.password || '123456';
+                document.getElementById('studentModal').classList.add('active');
+            }
+        }
+
+        async function deleteStudent(id) {
+            if (confirm('Are you sure you want to delete this student?')) {
+                const result = await apiCall(`/students/${id}`, 'DELETE');
+                if (result && result.success) {
+                    showAlert('Student deleted successfully');
+                    loadStudents();
+                }
+            }
+        }
+
+        document.getElementById('studentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                address: document.getElementById('address').value,
+                password: document.getElementById('studentPassword').value
+            };
+            
+            const endpoint = editingId ? `/students/${editingId}` : '/students';
+            const method = editingId ? 'PUT' : 'POST';
+            
+            const result = await apiCall(endpoint, method, data);
+            if (result && result.success) {
+                showAlert(result.message);
+                closeModal();
+                loadStudents();
+            }
+        });
+
+        loadStudents();
+    </script>
+</body>
+</html>
